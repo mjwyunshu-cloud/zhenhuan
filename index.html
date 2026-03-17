@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>紫禁城·生存哲学图谱 | 灵魂手稿版</title>
+    
+    <script src="https://fastly.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://fastly.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://fastly.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://fastly.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --palace-red: #8B1B1B; 
+            --palace-gold: #C5A059; 
+            --palace-ink: #2D2926; 
+            --palace-silk: #F4F1EA;
+        }
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background-color: var(--palace-silk);
+            color: var(--palace-ink);
+            margin: 0;
+            overflow-x: hidden;
+            background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+            -webkit-font-smoothing: antialiased;
+        }
+        .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .deckled-clip {
+            clip-path: polygon(0 100%, 1% 40%, 3% 98%, 6% 50%, 9% 92%, 12% 58%, 15% 100%, 18% 45%, 21% 94%, 24% 42%, 27% 100%, 30% 50%, 33% 85%, 36% 60%, 39% 98%, 42% 45%, 45% 94%, 48% 55%, 51% 90%, 54% 42%, 57% 100%, 60% 60%, 63% 82%, 66% 48%, 69% 95%, 72% 62%, 75% 92%, 78% 40%, 81% 95%, 84% 55%, 87% 100%, 90% 48%, 93% 85%, 96% 60%, 100% 100%);
+        }
+
+        .gold-border {
+            border: 1px solid var(--palace-gold);
+            position: relative;
+        }
+        .gold-border::after {
+            content: ''; position: absolute; top: 4px; left: 4px; right: 4px; bottom: 4px;
+            border: 1px solid rgba(197, 160, 89, 0.15); pointer-events: none;
+        }
+
+        .option-active {
+            border-color: var(--palace-red) !important;
+            background-color: white !important;
+            box-shadow: 0 4px 20px rgba(139, 27, 27, 0.08);
+        }
+
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const ARCHETYPES = {
+            SLAYER: { name: "屠龙者 / SLAYER", core: "在毁灭中重生，用权力终结压迫。", logic: "必须亲手杀掉那个单纯的自己。", antidote: "记得那年的梅花。" },
+            MARTYR: { name: "殉道者 / MARTYR", core: "情感即真理，即便面对毁灭也绝不退色。", logic: "宁可在火中化为灰烬，也不在土里腐烂。", antidote: "留一线清明给自己。" },
+            OUTSIDER: { name: "局外人 / OUTSIDER", core: "看穿博弈的虚无，在清醒中固守孤岛。", logic: "我要的你给不了，你有的我不稀罕。", antidote: "去握一根真实的火把。" },
+            CLIMBER: { name: "攀爬者 / CLIMBER", core: "生存即正义，将自我化为博弈兵器。", logic: "与其求被爱，不如求被畏惧。", antidote: "为自己活一个小时。" },
+            ARCHITECT: { name: "秩序者 / ARCHITECT", core: "秩序的信徒，用地位填补内心的空洞。", logic: "位次稳固，灵魂缺失亦可忽略。", antidote: "承认那种无力的真实。" },
+            OPERATOR: { name: "操盘手 / OPERATOR", core: "极致的实用主义，借刀杀人的艺术。", logic: "孩子与生存，是我算计的唯一筹码。", antidote: "偶尔信一次报应。" }
+        };
+
+        const CHARACTERS = {
+            ZHEN_HUAN: { id: 'ZHEN_HUAN', name: "甄嬛", title: "悲悯的权杖", movement: "SLAYER", desc: "你曾追求纯粹，但在见识了秩序的冷酷后，你学会了用更冷的逻辑守卫。你是幸存者，也是自我的祭奠者。", stats: [95, 75, 70, 92, 85], quote: "那几年的情爱时光，究竟是错付了。", books: [
+                {title: "《君主论》", desc: "理解权力的两面性：博弈并非为了作恶，而是为了在黑暗秩序中获得行善的入场券。"},
+                {title: "《乌合之众》", desc: "深入解构后宫这种群体博弈中的非理性逻辑，看清‘替身’叙事背后的权力投射。"},
+                {title: "《第二性》", desc: "探讨女性在‘他者化’境遇中，如何通过夺取主体性来完成自我的政治学重构。"}
+            ]},
+            MEI_ZHUANG: { id: 'MEI_ZHUANG', name: "沈眉庄", title: "冰雪的孤峰", movement: "OUTSIDER", desc: "你的世界是非黑即白的。一旦信任破裂，你宁愿毁掉整座桥梁。你不需要赢，你只需要不输给平庸。", stats: [65, 100, 80, 95, 45], quote: "宁可枝头抱香死，何曾吹落北风中。", books: [
+                {title: "《瓦尔登湖》", desc: "教你如何守住内心的孤岛，在浑浊的体制里寻找一种拒绝被同化的、高贵的寂寞。"},
+                {title: "《自尊》", desc: "深刻剖析在极端环境下，如何维持人格尊严不被权势稀释，建立稳固的自我评价体系。"},
+                {title: "《孤独的价值》", desc: "肯定清醒的孤独优于平庸的合群，理解‘不屑一顾’才是对平庸制度最高级的反抗。"}
+            ]},
+            YI_XIU: { id: 'YI_XIU', name: "宜修", title: "金色的囚牢", movement: "ARCHITECT", desc: "你深信唯有稳固的身份才能弥补不安全感。你冷静地切除一切威胁到你“位次”的变数。", stats: [100, 55, 90, 85, 95], quote: "臣妾做不到啊。", books: [
+                {title: "《权力意志》", desc: "解构生命本质中对秩序与支配的渴求，看清那些冷静杀伐背后其实是极度的恐惧。"},
+                {title: "《悲惨世界》中的沙威", desc: "探讨一个秩序极端信徒的悲剧：当规则本身已经腐烂，死守岗位的灵魂该如何自处？"},
+                {title: "《凡尔赛宫的幽灵》", desc: "剖析宫廷旧秩序下被扭曲的女性生命，理解那些‘不安全感’的历史文化根源。"}
+            ]},
+            HUA_FEI: { id: 'HUA_FEI', name: "年世兰", title: "赤红的自焚", movement: "MARTYR", desc: "你的人生没有中间地带，爱便倾其所有。你是这死寂城里唯一鲜活的血色，即便那血是自己的。", stats: [45, 88, 100, 35, 98], quote: "贱人就是矫情。", books: [
+                {title: "《悲剧的诞生》", desc: "理解酒神精神的疯狂与炽热：这种不计后果的燃烧，是生命最原始、最动人的力量。"},
+                {title: "《情欲的心理学》", desc: "剖析那些毁灭性的纯粹爱欲，为何在权力场中必然演变为一场凄美的自戕。"},
+                {title: "《生命中不能承受之轻》", desc: "探讨‘沉重’的情执：如果生命必须依附于某种极致的情感，其背后的虚无该如何填补？"}
+            ]},
+            AN_LINGRONG: { id: 'AN_LINGRONG', name: "安陵容", title: "带毒的春茧", movement: "CLIMBER", desc: "敏锐且自卑。你将生命化为一场长久的表演，你的恶，是对这不公世界最后的一声带痛的尖叫。", stats: [88, 35, 85, 98, 75], quote: "我这一生，原本就是不甘心。", books: [
+                {title: "《西西弗神话》", desc: "关于荒谬的攀爬：明知那是徒劳，却依然不断向上，这本身就是对不公命运的一种抵抗。"},
+                {title: "《被嫌弃的松子的一生》", desc: "深度探讨自卑与渴望被爱的毁灭性循环，看清那些‘带毒的刺’其实是灵魂求救的信号。"},
+                {title: "《社会性动物》", desc: "从社会心理学角度理解环境如何异化一个人的自尊，让一个纯真的女孩变成权力兵器。"}
+            ]},
+            YE_LANYI: { id: 'YE_LANYI', name: "叶澜依", title: "旷野的刺青", movement: "OUTSIDER", desc: "你虽在城中，心在关外。你是紫禁城最锋利的倒刺，只为心中那一点微光而活，拒绝被规则同化。", stats: [55, 100, 95, 88, 100], quote: "这福气给你，你要不要？", books: [
+                {title: "《局外人》", desc: "对荒谬世界保持绝对的冷漠与真实：我不演戏，因为演戏是对我生命野性的亵渎。"},
+                {title: "《荒原狼》", desc: "独行的灵魂如何在人群中生存，看清那些锋芒背后的孤独与对高尚事物的忠诚。"},
+                {title: "《瓦尔登湖》", desc: "另一种精神层面的‘放逐’：身在牢笼，心有旷野，即便在宫墙内也要守住野生的主体。"}
+            ]},
+            CAO_QINMO: { id: 'CAO_QINMO', name: "曹琴默", title: "无形的蛛网", movement: "OPERATOR", desc: "你是最精明的实用主义者。没有永恒的盟友，只有永恒的生存。你借刀杀人，只为在这乱局中守住自己的一方阵地。", stats: [98, 30, 60, 95, 80], quote: "若能以此保全孩子，哪怕是自绝后路也在所不惜。", books: [
+                {title: "《孙子兵法》", desc: "借刀杀人、避实击虚的极致策略：生存并非比拼力量，而是比拼对人性的精准核算。"},
+                {title: "《博弈论与社会契约》", desc: "从理性人视角理解后宫生存：当所有人都各怀鬼胎，如何通过最小代价换取最大安全。"},
+                {title: "《冷酷的逻辑》", desc: "在商业与权谋博弈中剥离情感，学习如何将一切情感资源转化为生存筹码。"}
+            ]},
+            DUAN_FEI: { id: 'DUAN_FEI', name: "端妃", title: "蛰伏的利刃", movement: "SLAYER", desc: "你是顶尖的耐心博弈者。身体的残缺换来了精神的极度锐利，你等待十年，只为一击必杀。", stats: [92, 90, 85, 100, 70], quote: "这日子，熬着熬着也就出头了。", books: [
+                {title: "《基督山伯爵》", desc: "关于等待与复仇的终极史诗：理解‘等待’本身就是一种极其强大的精神武器。"},
+                {title: "《活着》", desc: "极致的韧性与生命的熬炼：当所有的幸福都被剥夺，活下去本身就是对敌人最强的反击。"},
+                {title: "《卧薪尝胆》", desc: "学习中国历史上忍辱负重的最高智慧，看清利刃是如何在常年的寂寞中被打磨出来的。"}
+            ]},
+            JING_FEI: { id: 'JING_FEI', name: "敬妃", title: "寂寞的基座", movement: "ARCHITECT", desc: "你是这座城的底片。你不需要高光的权势，只需要长久的陪伴与安全。你用砖头的纹理打发孤独，却在关键时刻有着稳重的力量。", stats: [80, 85, 75, 98, 50], quote: "我数过这宫里的每一块砖，这种寂寞你可懂？", books: [
+                {title: "《百年孤独》", desc: "学习如何与寂寞共处，在孤独的轮回中寻找生命的基座，建立一个属于自己的宁静时空。"},
+                {title: "《平淡生活里的坚守》", desc: "探讨非英雄主义的生存策略：如何通过‘无害化’自己，在激烈的风暴中笑到最后。"},
+                {title: "《瓦尔登湖》", desc: "既然无法离开，便在心中建造自己的湖泊，通过数砖头这种微小的仪式感抵御虚无。"}
+            ]},
+            QI_GUIREN: { id: 'QI_GUIREN', name: "祺贵人", title: "狂妄的碎瓷", movement: "MARTYR", desc: "你傲慢且直白，依仗家族的力量肆意妄为。你不是在博弈，你是在宣泄阶级的优越感，却忘了瓷器易碎。", stats: [40, 60, 70, 45, 95], quote: "不过是个低贱的出身，也敢与我平起平坐？", books: [
+                {title: "《傲慢与偏见》", desc: "深刻审视阶级优越感带来的盲目：如果你只看重门第，你便永远看不清真实的对手。"},
+                {title: "《红楼梦》中的王熙凤", desc: "剖析那种‘机关算尽太聪明，反误了卿卿性命’的悲剧，看清傲慢是如何加速毁灭的。"},
+                {title: "《浮华世家》", desc: "探讨家族虚荣的消亡：当靠山崩塌，那个只会依附于家族势能的灵魂将如何面对废墟。"}
+            ]}
+        };
+
+        const QUESTIONS = [
+            { text: "若你发现自己深爱的人，只把你当成前任的替身：", options: [
+                { text: "借“替身”之便，索取更多实际的资源和地位", type: "CLIMBER" },
+                { text: "决绝断爱，从此他在你眼里只是个“工具人”", type: "OUTSIDER" },
+                { text: "隐忍不发，蛰伏在暗处等待对方露出破绽", type: "SLAYER" },
+                { text: "利用这层身份制造混乱，搅浑这池水", type: "OPERATOR" }
+            ]},
+            { text: "曾经最好的朋友为了前程，在背后狠狠捅了你一刀：", options: [
+                { text: "等自己上位后，给她安排一个最痛苦的结局", type: "CLIMBER" },
+                { text: "直接掀桌子，哪怕两败俱伤也要当众揭穿她", type: "MARTYR" },
+                { text: "将她视为“局”中的棋子，反向利用她的背叛", type: "SLAYER" },
+                { text: "表面原谅，背地里引导第三方势力除掉她", type: "OPERATOR" }
+            ]},
+            { text: "被贬入冷宫的第一夜，你坐在发霉的草席上，念头是：", options: [
+                { text: "只要有一丝活路，哪怕跪着爬我也要爬出去", type: "CLIMBER" },
+                { text: "死也要死得干净，这是我最后的尊严", type: "OUTSIDER" },
+                { text: "数这里的砖头，计算每一步复仇的可能", type: "ARCHITECT" },
+                { text: "回忆往日的温情，觉得一切都是命运的诅咒", type: "MARTYR" }
+            ]},
+            { text: "如果权力是一把双刃剑，你觉得它最大的价值在于：", options: [
+                { text: "保护我爱的人，不再受哪怕一丁点委屈", type: "SLAYER" },
+                { text: "维持秩序，让一切混乱都归于平静", type: "ARCHITECT" },
+                { text: "报复那些曾经看不起我、踩过我尊严的人", type: "CLIMBER" },
+                { text: "自由。拥有随时对任何人说“滚”的权利", type: "OUTSIDER" }
+            ]},
+            { text: "看到昔日羞辱过你的死对头落水呼救，此时四下无人：", options: [
+                { text: "冷眼旁观。这叫报应，我不落井下石已是仁慈", type: "OUTSIDER" },
+                { text: "喊人来救，但要在救起后以此为柄，控制对方", type: "OPERATOR" },
+                { text: "顺手推一把。这种人活在世上就是威胁", type: "ARCHITECT" },
+                { text: "救人。我的原则不因对方的卑劣而改变", type: "MARTYR" }
+            ]},
+            { text: "如果你必须要通过跳一支舞来重新博回圣宠：", options: [
+                { text: "跳得极尽妩媚，甚至不惜在衣服里藏蝴蝶造势", type: "CLIMBER" },
+                { text: "不跳。这对我来说是莫大的耻辱", type: "OUTSIDER" },
+                { text: "跳。如果这是翻身的唯一路标，我必须跳得完美", type: "SLAYER" },
+                { text: "跳得傲慢。告诉世界：是我在赏赐你们看舞", type: "MARTYR" }
+            ]},
+            { text: "你被诬陷与人有染，面临“滴血验亲”的绝境：", options: [
+                { text: "在水里提前加矾，用博弈的思维去解决污蔑", type: "SLAYER" },
+                { text: "疯狂辩解，用最激烈的情绪证明清白", type: "MARTYR" },
+                { text: "寻找幕后真凶，反咬对方的逻辑漏洞", type: "OPERATOR" },
+                { text: "冷眼看着那碗水。这虚伪的审判让我恶心", type: "OUTSIDER" }
+            ]},
+            { text: "你发现自己的才华被平庸且嫉贤妒能的上司打压：", options: [
+                { text: "私下讨好，拿到核心权力后再将其踢开", type: "CLIMBER" },
+                { text: "直接越级举报，哪怕职场生涯自此终结", type: "MARTYR" },
+                { text: "做个“职场透明人”，在精神世界里保持高傲", type: "OUTSIDER" },
+                { text: "联合其他受害者，制定长期的倒台计划", type: "SLAYER" }
+            ]},
+            { text: "如果能带一件现代物品回紫禁城，你会选：", options: [
+                { text: "一部装满厚黑学和兵书的电子书", type: "OPERATOR" },
+                { text: "一支左轮手枪。谁废话就送谁走", type: "MARTYR" },
+                { text: "一套微缩监控设备，掌握所有人的秘密", type: "SLAYER" },
+                { text: "一架高性能天文望远镜。离人群越远越好", type: "OUTSIDER" }
+            ]},
+            { text: "当你白发苍苍坐上太后之位，你此时最想念的是：", options: [
+                { text: "那个最初入宫、满眼星光但已死去的少女", type: "SLAYER" },
+                { text: "那个曾经热烈对抗、最后败给你的劲敌", type: "CLIMBER" },
+                { text: "那个你终其一生都没能真正得到的爱人", type: "MARTYR" },
+                { text: "没有任何人。你只觉得这寂静的宫殿很安稳", type: "ARCHITECT" }
+            ]},
+            { text: "竞争对手突然患了重病，你手里有救命药，你会：", options: [
+                { text: "救活他，但他得从此为你效力", type: "SLAYER" },
+                { text: "假装不知道。有些威胁还是病着比较稳妥", type: "OPERATOR" },
+                { text: "直接送过去。我不屑于在对方病弱时赢", type: "MARTYR" },
+                { text: "如果是规则要求的，那就给；反之则不理", type: "ARCHITECT" }
+            ]},
+            { text: "家族蒙冤被流放，此时你位居高位，你会：", options: [
+                { text: "孤注一掷去求情。大不了这官（位）我不做了", type: "MARTYR" },
+                { text: "隐忍。等找到主谋的确凿罪证后再雷霆一击", type: "SLAYER" },
+                { text: "划清界限。如果这影响我的位次，我不能被拖累", type: "ARCHITECT" },
+                { text: "尽量打点，然后从此断绝任何情感连接", type: "OUTSIDER" }
+            ]},
+            { text: "面对一个出身卑微、但极具潜力的新人示好：", options: [
+                { text: "收为己用。她是最好的棋子", type: "OPERATOR" },
+                { text: "极度警惕。这种人最容易反噬，必须压制", type: "CLIMBER" },
+                { text: "真诚相待。我也曾有过这样的时刻", type: "MARTYR" },
+                { text: "只要不逾矩，大家相安无事", type: "ARCHITECT" }
+            ]},
+            { text: "必须要给生命贴一个“底色标签”，你选：", options: [
+                { text: "秩序", type: "ARCHITECT" },
+                { text: "自由", type: "OUTSIDER" },
+                { text: "胜利", type: "SLAYER" },
+                { text: "热忱", type: "MARTYR" }
+            ]},
+            { text: "发现皇帝赏你的名贵香料里藏着绝育的药物：", options: [
+                { text: "收起来，在合适的机会作为“被害”证据抛出", type: "SLAYER" },
+                { text: "心碎。从此对他只有毁灭欲", type: "MARTYR" },
+                { text: "研究药理，以后用来对付其他人", type: "CLIMBER" },
+                { text: "扔掉。从此对他彻底死心", type: "OUTSIDER" }
+            ]},
+            { text: "若要你通过毒害一个孩子来保全家族：", options: [
+                { text: "做不到。这是底线，哪怕覆灭", type: "OUTSIDER" },
+                { text: "会做。成王败寇，这就是权力的入场券", type: "CLIMBER" },
+                { text: "设计一出意外，让孩子活，但让家族以为死了", type: "OPERATOR" },
+                { text: "执行。为了大局，我可以牺牲部分人性", type: "ARCHITECT" }
+            ]},
+            { text: "你认为这宫里（或职场）最可怕的东西是：", options: [
+                { text: "无底洞般的自卑感", type: "CLIMBER" },
+                { text: "无法被掌控的变数", type: "ARCHITECT" },
+                { text: "会被人利用的真情", type: "SLAYER" },
+                { text: "被规则同化的平庸", type: "OUTSIDER" }
+            ]},
+            { text: "如果你是一朵花，你希望开在：", options: [
+                { text: "温室中心，受万人瞩目", type: "ARCHITECT" },
+                { text: "悬崖边缘，冷傲且无人能采", type: "OUTSIDER" },
+                { text: "荆棘丛中，带着刺和香气", type: "SLAYER" },
+                { text: "祭坛之上，闪耀一瞬", type: "MARTYR" }
+            ]},
+            { text: "当你发现这世界的真相其实是一场巨大的虚无：", options: [
+                { text: "那就利用虚无，去建立属于我的实体帝国", type: "SLAYER" },
+                { text: "既然是虚无，那就尽情燃烧", type: "MARTYR" },
+                { text: "坐在虚无边缘，看你们折腾", type: "OUTSIDER" },
+                { text: "制定规则来掩盖虚无，让大家觉得都有意义", type: "ARCHITECT" }
+            ]},
+            { text: "最后，如果你可以对那个最初入宫的自己说一句话：", options: [
+                { text: "“别怕，你会是最后的赢家。”", type: "SLAYER" },
+                { text: "“快跑，离这权力中心越远越好。”", type: "OUTSIDER" },
+                { text: "“狠一点，只有够狠才能活。”", type: "CLIMBER" },
+                { text: "“爱就爱了，别后悔。”", type: "MARTYR" }
+            ]}
+        ];
+
+        // 样式组件
+        const DeckledPaper = ({ children, className = "" }) => (
+            <div className={`relative bg-[#fcfbf9] border border-[#dcd8cf] ${className}`} style={{ boxShadow: '0 10px 40px rgba(0,0,0,0.15)' }}>
+                <div className="absolute top-[-8px] left-0 w-full h-4 bg-[#fcfbf9] deckled-clip"></div>
+                {children}
+            </div>
+        );
+
+        const App = () => {
+            const [step, setStep] = useState('welcome');
+            const [currentQ, setCurrentQ] = useState(0);
+            const [scores, setScores] = useState({ SLAYER: 0, MARTYR: 0, OUTSIDER: 0, CLIMBER: 0, ARCHITECT: 0, OPERATOR: 0 });
+            const [history, setHistory] = useState([]);
+            const [result, setResult] = useState(null);
+            const [isSaving, setIsSaving] = useState(false);
+            const [selectedIdx, setSelectedIdx] = useState(null);
+
+            const radarRef = useRef(null);
+            const captureRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            const handleAnswer = (type, index) => {
+                setSelectedIdx(index);
+                setTimeout(() => {
+                    const nextScores = { ...scores, [type]: scores[type] + 1 };
+                    const nextHistory = [...history, { scores, currentQ, choiceIndex: index }];
+                    setHistory(nextHistory);
+                    setScores(nextScores);
+                    setSelectedIdx(null);
+                    
+                    if (currentQ < QUESTIONS.length - 1) {
+                        setCurrentQ(currentQ + 1);
+                        window.scrollTo(0, 0);
+                    } else {
+                        finalizeResult(nextScores, nextHistory);
+                    }
+                }, 300);
+            };
+
+            const finalizeResult = (finalScores, fullHistory) => {
+                const top = Object.keys(finalScores).sort().reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
+                const pool = Object.values(CHARACTERS).filter(c => c.movement === top);
+                const seed = fullHistory.reduce((sum, h) => sum + (h.choiceIndex || 0), 0);
+                setResult(pool[seed % pool.length]);
+                setStep('result');
+                window.scrollTo(0, 0);
+            };
+
+            const handlePrev = () => {
+                if (currentQ > 0) {
+                    const last = history.pop();
+                    setScores(last.scores);
+                    setCurrentQ(last.currentQ);
+                    setHistory([...history]);
+                } else setStep('welcome');
+            };
+
+            useEffect(() => {
+                if (step === 'result' && result && radarRef.current) {
+                    if (chartInstance.current) chartInstance.current.destroy();
+                    const ctx = radarRef.current.getContext('2d');
+                    chartInstance.current = new window.Chart(ctx, {
+                        type: 'radar',
+                        data: {
+                            labels: ['智计', '傲骨', '情执', '隐忍', '杀伐'],
+                            datasets: [{
+                                data: result.stats,
+                                backgroundColor: `rgba(139, 27, 27, 0.1)`,
+                                borderColor: '#8B1B1B',
+                                borderWidth: 1.5,
+                                pointRadius: 1.5,
+                                pointBackgroundColor: '#8B1B1B'
+                            }]
+                        },
+                        options: {
+                            scales: { r: { grid: { color: 'rgba(0,0,0,0.05)' }, angleLines: { display: false }, ticks: { display: false }, min: 0, max: 105 } },
+                            plugins: { legend: { display: false } },
+                            maintainAspectRatio: false
+                        }
+                    });
+                }
+            }, [step, result]);
+
+            const saveReport = async () => {
+                setIsSaving(true);
+                try {
+                    const canvas = await window.html2canvas(captureRef.current, { scale: 3, backgroundColor: '#F4F1EA', useCORS: true });
+                    const link = document.createElement('a');
+                    link.download = `紫禁城档案_${result.name}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } catch (e) {
+                    console.error("保存失败", e);
+                }
+                setIsSaving(false);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4 md:p-12">
+                    <div className="w-full max-w-[500px] relative">
+                        
+                        {step === 'welcome' && (
+                            <div className="animate-fade-in">
+                                <DeckledPaper className="aspect-[3/4.6] flex flex-col items-center justify-center p-12 text-center overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-full h-1/2 opacity-[0.03] pointer-events-none bg-red-900"></div>
+                                    <div className="space-y-4 mb-16 relative z-10">
+                                        <h1 className="text-5xl font-black tracking-[0.2em] text-red-900 serif">甄嬛传</h1>
+                                        <div className="h-[2px] w-12 bg-amber-600 mx-auto"></div>
+                                        <p className="text-[10px] tracking-[0.6em] uppercase opacity-40 font-bold font-sans">Palace Survival Map</p>
+                                    </div>
+                                    <p className="text-sm leading-loose text-stone-600 mb-16 italic serif px-2">
+                                        “这宫里的水，原本就是冷的。”<br/>
+                                        20 组生存场景模拟，<br/>揭示你潜意识里的权力人格坐标。
+                                    </p>
+                                    <button onClick={() => setStep('quiz')} className="px-12 py-4 bg-red-950 text-amber-100 text-[10px] tracking-[0.5em] font-bold uppercase transition-all shadow-2xl active:scale-95">开启博弈之旅</button>
+                                    <div className="absolute bottom-10 text-[8px] opacity-20 tracking-widest font-bold font-sans">© 2026 @云树CLOUDTREE</div>
+                                </DeckledPaper>
+                            </div>
+                        )}
+
+                        {step === 'quiz' && (
+                            <div className="animate-fade-in space-y-10">
+                                <div className="flex justify-between items-end px-2">
+                                    <button onClick={handlePrev} className="text-[9px] font-bold opacity-30 uppercase tracking-widest hover:opacity-100 transition-opacity">← Back</button>
+                                    <span className="text-[10px] tracking-[0.3em] font-black uppercase text-red-900 italic">STEP {currentQ + 1} / 20</span>
+                                </div>
+                                <div className="min-h-[140px] flex items-center justify-center px-4 text-2xl font-black leading-snug text-center tracking-tight serif">
+                                    {QUESTIONS[currentQ].text}
+                                </div>
+                                <div className="grid gap-3">
+                                    {QUESTIONS[currentQ].options.map((opt, i) => (
+                                        <button key={i} onClick={() => handleAnswer(opt.type, i)} 
+                                            className={`w-full p-6 text-sm border border-stone-200 bg-white/40 text-left transition-all group ${selectedIdx === i ? 'option-active' : 'hover:border-red-900 hover:bg-white'}`}
+                                        >
+                                            <span className={`serif font-bold transition-all block ${selectedIdx === i ? 'pl-2 text-red-900' : 'opacity-70 group-hover:opacity-100 group-hover:pl-2'}`}>
+                                                {opt.text}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="w-full h-[1px] bg-stone-200 relative"><div className="h-full bg-red-900 transition-all duration-500" style={{ width: `${((currentQ+1)/20)*100}%` }}></div></div>
+                            </div>
+                        )}
+
+                        {step === 'result' && result && (
+                            <div className="animate-fade-in space-y-8 pb-12">
+                                <div ref={captureRef} className="bg-[#f4f1ea] px-2 py-4">
+                                    <DeckledPaper className="p-8 md:p-10 space-y-10 gold-border">
+                                        <div className="flex flex-col items-center text-center space-y-3">
+                                            <span className="text-[8px] font-bold uppercase tracking-[0.4em] text-red-900 border border-red-900 px-2 py-0.5 font-sans">Imperial Archive</span>
+                                            <h2 className="text-4xl font-black tracking-tight text-red-950 serif">{result.name}</h2>
+                                            <p className="text-[11px] font-bold text-amber-800 tracking-widest uppercase">{result.title}</p>
+                                        </div>
+
+                                        <div className="w-full py-8 border-y border-stone-200 text-center bg-[#fffdfa] text-xl font-bold px-4 italic leading-relaxed text-red-900 serif">“{result.quote}”</div>
+
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-4">
+                                                <h4 className="text-[10px] font-black tracking-[0.4em] uppercase text-amber-700 whitespace-nowrap">Philosophy / 逻辑支点</h4>
+                                                <div className="h-[1px] w-full bg-stone-200"></div>
+                                            </div>
+                                            <p className="text-lg font-bold leading-relaxed text-justify serif text-stone-800">{result.desc}</p>
+                                            <div className="p-5 bg-red-50/40 border-l-4 border-red-900 text-xs italic opacity-80 leading-loose">
+                                                档案识读：{ARCHETYPES[result.movement].logic}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-8 items-center pt-2">
+                                            <div className="space-y-4">
+                                                <div className="text-[8px] opacity-40 font-bold uppercase tracking-[0.2em]">流派识别：{ARCHETYPES[result.movement].name}</div>
+                                                <p className="text-[10px] leading-loose opacity-60 text-justify border-t border-stone-100 pt-4 font-serif">核心：{ARCHETYPES[result.movement].core}</p>
+                                            </div>
+                                            <div className="flex justify-center">
+                                                <div className="w-40 h-40 opacity-90"><canvas ref={radarRef}></canvas></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="w-full p-6 border border-amber-600/30 text-center bg-[#fffcf5] relative shadow-inner">
+                                            <div className="absolute top-[-9px] left-1/2 -translate-x-1/2 bg-[#fcfbf9] px-3 text-[9px] font-bold text-amber-700 tracking-[0.4em] uppercase">Antidote</div>
+                                            <p className="text-lg font-black tracking-widest italic text-stone-800 serif">“{ARCHETYPES[result.movement].antidote}”</p>
+                                        </div>
+
+                                        <div className="space-y-4 pt-6 border-t border-stone-200">
+                                            <h4 className="text-[9px] font-bold tracking-[0.4em] text-center uppercase opacity-30">Reading Recommendations</h4>
+                                            {result.books.map(b => (
+                                                <div key={b.title} className="p-5 bg-white border border-stone-100 hover:border-red-900 transition-all shadow-sm">
+                                                    <h5 className="font-black text-sm text-red-950 mb-2 leading-tight">{b.title}</h5>
+                                                    <p className="text-[10px] opacity-60 leading-relaxed italic text-stone-600">{b.desc}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="pt-6 border-t border-stone-200">
+                                            <div className="text-[9px] font-bold tracking-[0.4em] text-center uppercase opacity-30 mb-4">Follow on Xiaohongshu</div>
+                                            <div className="flex flex-col items-center text-center gap-3">
+                                                <div className="bg-white border border-stone-200 p-2 shadow-sm">
+                                                    <img
+                                                        src="xhs-qr.png"
+                                                        alt="小红书二维码"
+                                                        className="w-36 h-36 object-contain"
+                                                        loading="lazy"
+                                                    />
+                                                </div>
+                                                <div className="text-[10px] leading-loose opacity-70 text-stone-700 font-serif">
+                                                    扫码关注小红书，领取更多「紫禁城生存哲学」系列内容
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="text-[8px] opacity-10 tracking-[0.5em] text-center font-bold uppercase pt-4 font-sans">© 2026 Curated by @云树CLOUDTREE</div>
+                                    </DeckledPaper>
+                                </div>
+
+                                <div className="px-6 space-y-3">
+                                    <button onClick={saveReport} disabled={isSaving} className="w-full py-5 bg-red-950 text-amber-100 text-[10px] tracking-[0.5em] font-bold shadow-2xl uppercase transition-all hover:bg-black disabled:opacity-50">
+                                        {isSaving ? "正在存档..." : "保存紫禁城人格档案"}
+                                    </button>
+                                    <button onClick={() => window.location.reload()} className="w-full py-4 border border-stone-300 text-[9px] tracking-[0.4em] font-bold uppercase hover:bg-stone-50 transition-all">重回潜邸</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
